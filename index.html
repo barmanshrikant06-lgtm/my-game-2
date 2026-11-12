@@ -1,0 +1,225 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BMW M8 Racing Game</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+ background:#101820;color:white;
+ font-family:Arial;text-align:center;
+ overflow:hidden;
+}
+h1{
+ padding:12px;color:#00aaff;
+ text-shadow:0 0 15px #008cff;
+}
+#hud{
+ display:flex;justify-content:space-around;
+ padding:10px;font-weight:bold;font-size:18px;
+}
+#game{
+ width:100%;max-width:500px;
+ height:75vh;max-height:700px;
+ margin:auto;position:relative;
+ overflow:hidden;
+ background:linear-gradient(#69b7db 0%,#b9e4ed 35%,#237b35 35%,#164b25 100%);
+ border:3px solid white;
+}
+#road{
+ position:absolute;left:10%;width:80%;
+ height:100%;background:#303238;
+ border-left:8px solid white;
+ border-right:8px solid white;
+}
+#road:after{
+ content:"";position:absolute;left:50%;
+ height:100%;width:6px;
+ background:repeating-linear-gradient(
+ to bottom,white 0px,white 55px,
+ transparent 55px,transparent 105px
+ );
+ transform:translateX(-50%);
+ animation:moveRoad .4s linear infinite;
+}
+@keyframes moveRoad{
+ from{background-position-y:0}
+ to{background-position-y:105px}
+}
+.car{
+ width:65px;height:115px;
+ position:absolute;border-radius:18px 18px 12px 12px;
+ border:3px solid #111;
+}
+#player{
+ bottom:20px;left:calc(50% - 32px);
+ background:linear-gradient(90deg,#0050aa,#168cff,#003b82);
+ z-index:5;
+ box-shadow:0 0 20px #008cff;
+}
+.car:before{
+ content:"";position:absolute;
+ top:18px;left:9px;width:41px;height:30px;
+ background:#9ceaff;border:2px solid #111;
+ border-radius:9px 9px 3px 3px;
+}
+.car:after{
+ content:"";position:absolute;
+ bottom:15px;left:10px;width:39px;height:25px;
+ background:#151515;border-radius:4px;
+}
+.wheel{
+ position:absolute;background:#050505;
+ width:9px;height:25px;top:28px;
+}
+.w1{left:-8px}.w2{right:-8px}
+.enemy{
+ position:absolute;top:-130px;
+ background:linear-gradient(90deg,#a00000,#ff3030,#800000);
+ z-index:4;
+}
+#nitro{
+ width:85%;height:12px;
+ background:#555;margin:5px auto;
+ border-radius:10px;overflow:hidden;
+}
+#nitroFill{width:100%;height:100%;background:#00d9ff}
+.controls{
+ display:flex;justify-content:center;gap:30px;
+ padding:10px;
+}
+button{
+ padding:13px 23px;border:0;border-radius:10px;
+ background:#008cff;color:white;
+ font-size:18px;font-weight:bold;
+}
+#overlay{
+ position:absolute;inset:0;
+ background:#000d;z-index:10;
+ display:flex;flex-direction:column;
+ justify-content:center;align-items:center;
+ gap:18px;
+}
+#overlay h2{color:#00aaff;font-size:32px}
+#overlay p{padding:0 20px}
+</style>
+</head>
+<body>
+
+<h1>🏎️ BMW M8 RACING</h1>
+
+<div id="hud">
+ <span>🏁 Score: <span id="score">0</span></span>
+ <span>⚡ Speed: <span id="speed">0</span> KM/H</span>
+</div>
+
+<div id="nitro"><div id="nitroFill"></div></div>
+
+<div id="game">
+ <div id="road"></div>
+
+ <div id="player" class="car">
+  <span class="wheel w1"></span>
+  <span class="wheel w2"></span>
+ </div>
+
+ <div id="overlay">
+  <h2>BMW M8</h2>
+  <h3>ULTIMATE RACING</h3>
+  <p>Drive your BMW M8 and avoid traffic!</p>
+  <button onclick="startGame()">START RACE 🏁</button>
+ </div>
+</div>
+
+<div class="controls">
+ <button onclick="move(-1)">⬅ LEFT</button>
+ <button onmousedown="boost=true" onmouseup="boost=false"
+ ontouchstart="boost=true" ontouchend="boost=false">
+ ⚡ NITRO
+ </button>
+ <button onclick="move(1)">RIGHT ➡</button>
+</div>
+
+<script>
+const game=document.getElementById("game");
+const player=document.getElementById("player");
+const overlay=document.getElementById("overlay");
+let lane=1,score=0,running=false,boost=false;
+let enemies=[],last=0,spawn=0,speed=5;
+const lanes=[22,45,68];
+
+function move(d){
+ if(!running)return;
+ lane=Math.max(0,Math.min(2,lane+d));
+ player.style.left=lanes[lane]+"%";
+}
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="ArrowLeft"||e.key==="a")move(-1);
+ if(e.key==="ArrowRight"||e.key==="d")move(1);
+ if(e.code==="Space")boost=true;
+});
+document.addEventListener("keyup",e=>{
+ if(e.code==="Space")boost=false;
+});
+
+function createEnemy(){
+ const el=document.createElement("div");
+ el.className="car enemy";
+ el.style.left=lanes[Math.floor(Math.random()*3)]+"%";
+ el.innerHTML='<span class="wheel w1"></span><span class="wheel w2"></span>';
+ game.appendChild(el);
+ enemies.push({el,y:-130,lane:lanes.indexOf(parseFloat(el.style.left))});
+}
+
+function startGame(){
+ enemies.forEach(e=>e.el.remove());
+ enemies=[];
+ lane=1;score=0;speed=5;boost=false;
+ player.style.left=lanes[lane]+"%";
+ running=true;last=0;spawn=0;
+ overlay.style.display="none";
+ requestAnimationFrame(loop);
+}
+
+function loop(t){
+ if(!running)return;
+ let dt=Math.min((t-last)/16.67||1,2);
+ last=t;
+ let currentSpeed=boost?10:speed;
+ score+=dt;
+ document.getElementById("score").textContent=Math.floor(score);
+ document.getElementById("speed").textContent=Math.floor(currentSpeed*25);
+ document.getElementById("nitroFill").style.width=boost?"35%":"100%";
+ spawn+=dt;
+ if(spawn>65){createEnemy();spawn=0}
+ for(let i=enemies.length-1;i>=0;i--){
+  let e=enemies[i];
+  e.y+=currentSpeed*dt;
+  e.el.style.top=e.y+"px";
+  if(e.lane===lane&&e.y>game.clientHeight-155&&e.y<game.clientHeight-15){
+   endGame();return;
+  }
+  if(e.y>game.clientHeight){
+   e.el.remove();enemies.splice(i,1);
+  }
+ }
+ if(score>0&&Math.floor(score)%500===0)speed=Math.min(9,speed+.01);
+ requestAnimationFrame(loop);
+}
+
+function endGame(){
+ running=false;
+ boost=false;
+ overlay.style.display="flex";
+ overlay.innerHTML=`
+ <h2>RACE OVER!</h2>
+ <h3>🏁 Score: ${Math.floor(score)}</h3>
+ <p>Your BMW M8 race has ended!</p>
+ <button onclick="startGame()">RESTART RACE 🔄</button>`;
+}
+</script>
+</body>
+</html>
